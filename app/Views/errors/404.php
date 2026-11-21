@@ -1,0 +1,1 @@
+<section class="empty-state"><p class="eyebrow">404</p><h1>Page not found</h1><p>This page may have moved or you may not have access.</p><a class="button" href="<?= e(url(current_user()?'dashboard':'login')) ?>">Return home</a></section>

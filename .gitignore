@@ -1,0 +1,5 @@
+.env
+/storage/media/*
+!/storage/media/index.html
+/storage/logs/*
+!/storage/logs/index.html

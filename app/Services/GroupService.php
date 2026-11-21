@@ -1,0 +1,14 @@
+<?php
+declare(strict_types=1);
+namespace WhatsUP\Services;
+use InvalidArgumentException;
+use PDO;
+final class GroupService {
+ public function __construct(private readonly PDO $pdo){}
+ public function list(int $userId):array{$s=$this->pdo->prepare('SELECT g.id,g.name,g.created_at,COUNT(gc.contact_id) contact_count FROM groups g LEFT JOIN group_contacts gc ON gc.group_id=g.id AND gc.user_id=g.user_id WHERE g.user_id=? GROUP BY g.id ORDER BY g.name');$s->execute([$userId]);return $s->fetchAll();}
+ public function create(int $userId,string $name):int{$name=trim($name);if($userId<1||$name===''||mb_strlen($name)>120)throw new InvalidArgumentException('Group name must be between 1 and 120 characters.');$s=$this->pdo->prepare('INSERT INTO groups(user_id,name,created_at,updated_at) VALUES(?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())');$s->execute([$userId,$name]);return (int)$this->pdo->lastInsertId();}
+ public function rename(int $userId,int $id,string $name):bool{$name=trim($name);if($name===''||mb_strlen($name)>120)throw new InvalidArgumentException('Invalid group name.');$s=$this->pdo->prepare('UPDATE groups SET name=?,updated_at=UTC_TIMESTAMP() WHERE id=? AND user_id=?');$s->execute([$name,$id,$userId]);return $s->rowCount()>0;}
+ public function delete(int $userId,int $id):bool{$s=$this->pdo->prepare('DELETE FROM groups WHERE id=? AND user_id=?');$s->execute([$id,$userId]);return $s->rowCount()>0;}
+ public function setMembers(int $userId,int $groupId,array $contactIds):int{$g=$this->pdo->prepare('SELECT id FROM groups WHERE id=? AND user_id=?');$g->execute([$groupId,$userId]);if(!$g->fetchColumn())throw new InvalidArgumentException('Group not found.');$ids=array_unique(array_filter(array_map('intval',$contactIds),fn($x)=>$x>0));$own=!$this->pdo->inTransaction();if($own)$this->pdo->beginTransaction();try{$lock=$this->pdo->prepare('SELECT id FROM groups WHERE id=? AND user_id=? FOR UPDATE');$lock->execute([$groupId,$userId]);if(!$lock->fetchColumn())throw new InvalidArgumentException('Group not found.');$this->pdo->prepare('DELETE FROM group_contacts WHERE group_id=? AND user_id=?')->execute([$groupId,$userId]);$ins=$this->pdo->prepare('INSERT INTO group_contacts(user_id,group_id,contact_id,created_at) SELECT ?,?,?,UTC_TIMESTAMP() FROM contacts WHERE id=? AND user_id=?');$added=0;foreach($ids as $id){$ins->execute([$userId,$groupId,$id,$id,$userId]);$added+=$ins->rowCount();}if($own)$this->pdo->commit();return $added;}catch(\Throwable $e){if($own&&$this->pdo->inTransaction())$this->pdo->rollBack();throw $e;}}
+ public function members(int $userId,int $groupId):array{$s=$this->pdo->prepare('SELECT c.id,c.name,c.phone_e164,c.consent_status FROM group_contacts gc JOIN contacts c ON c.id=gc.contact_id AND c.user_id=gc.user_id WHERE gc.group_id=? AND gc.user_id=? ORDER BY c.name');$s->execute([$groupId,$userId]);return $s->fetchAll();}
+}

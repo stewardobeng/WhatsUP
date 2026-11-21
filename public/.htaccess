@@ -1,0 +1,5 @@
+Options -Indexes
+DirectoryIndex index.php
+<FilesMatch "^(\.env.*|\.gitignore|\.git.*|composer\.(json|lock)|README\.md|phpunit\.xml)$">
+  Require all denied
+</FilesMatch>

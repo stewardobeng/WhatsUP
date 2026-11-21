@@ -1,0 +1,1 @@
+<section class="page-heading"><p class="eyebrow">Request not completed</p><h1><?= e($title??'Something went wrong') ?></h1><p class="muted"><?= e($message??'Please try again.') ?></p><a class="button button-secondary" href="<?= e(url(current_user()?'dashboard':'login')) ?>">Go back</a></section>
